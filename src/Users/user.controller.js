@@ -1,6 +1,7 @@
+const asyncHandler = require('../../utils/asyncHandler')
 const User = require('./user.model')
 
-exports.postUser = async (req, res) => {
+exports.postUser = asyncHandler( async (req, res) => {
     let { username, email, phone, role, password } = req.body
 
     let user = new User({
@@ -19,12 +20,11 @@ exports.postUser = async (req, res) => {
         }
     })
     res.send(user)
-}
+})
 
 
-exports.signIn = async (req, res) => {
+exports.signIn = asyncHandler(async (req, res) => {
     let { email, password } = req.body
-    try {
         let user = await User.findOne({ email })
         if (!user) {
             return res.status(403).json({ error: 'user is not registred' })
@@ -33,10 +33,6 @@ exports.signIn = async (req, res) => {
             return res.status(403).json({ error: 'email or password  does not match' })
         }
         res.status(200).json({msg:"loged in successfully"})
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ error: 'Internal server error' });
     }
-
-}
+)
 
