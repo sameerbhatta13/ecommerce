@@ -26,6 +26,13 @@ const userShema=new mongoose.Schema({
     isvarified:{
         type:Boolean,
         default:false
+    },
+    otp:{
+        type:String
+    },
+    otptime:{
+        type:Date,
+        default:()=>Date.now()+ 15000
     }
    
 })
