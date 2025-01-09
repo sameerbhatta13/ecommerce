@@ -54,7 +54,7 @@ exports.verify = asyncHandler(async (req, res) => {
     }
     const currTime = Date.now()
     if (user.otptime < currTime) {
-        return res.status(400).json({ error: 'otp is expired' })
+        throw new ApiError("otp is expired")
     }
     // user.isvarified=true
     // user.otp=null
@@ -67,9 +67,8 @@ exports.verify = asyncHandler(async (req, res) => {
         otptime: undefined
 
     })
-    res.status(200).json({
-        message: "Account verified"
-    })
+    res.status(200).json(new ApiResponse("account is verified")
+    )
 })
 
 
@@ -78,14 +77,10 @@ exports.signIn = asyncHandler(async (req, res) => {
     let { email, password } = req.body
 
     let user = await User.findOne({ email })
-    if (!user) {
-        return res.status(403).json({ error: 'user is not registred' })
-    }
-    if (!user.isvarified) {
-        return res.status(401).json({ erro: 'your account is not verified, otp is send to your email please verify' })
-    }
+    if (!user) throw new ApiError("user is not registered",403)
+    if (!user.isvarified) throw new ApiError("your account is not verified, otp is send to your email please verify")
     if (user.password != password) {
-        return res.status(403).json({ error: 'email or password  does not match' })
+       throw new ApiError("email or password  does not match")
     }
     const token=jwtToken(user._id)
     res.status(200).json({token, msg: "loged in successfully" })
