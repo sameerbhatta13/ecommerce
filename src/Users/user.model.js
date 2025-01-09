@@ -32,7 +32,7 @@ const userShema=new mongoose.Schema({
     },
     otptime:{
         type:Date,
-        default:()=>Date.now()+ 15000
+        default:()=>Date.now()+ 150000
     }
    
 })
