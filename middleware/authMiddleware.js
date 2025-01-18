@@ -1,24 +1,43 @@
 const ApiError = require("../utils/apiError");
 const asyncHandler = require("../utils/asyncHandler")
-const jwt=require('jsonwebtoken')
-const User=require('../src/Users/user.model')
+const jwt = require('jsonwebtoken')
+const User = require('../src/Users/user.model');
+const ApiResponse = require("../utils/apiResponse");
 
-const authmiddleware=asyncHandler (async(req,res,next)=>{
+const authmiddleware = asyncHandler(async (req, res, next) => {
     try {
-        const token=req.headears("authorization")?.replace("Bearer","")
-        if(!token)
-            throw new ApiError("token is not available",403);
-        const {_id}=jwt.verify(token,process.env.TOKEN)
-        const user=await User.findById(_id)
+        const token = req.header("authorization")?.replace("Bearer ", "")
+        console.log(token)
+        if (!token)
+            throw new ApiError("token is not available", 403);
+        const { userId } = jwt.verify(token, process.env.TOKEN)
+        const user = await User.findById(userId)
 
-        if(!user) throw new ApiError('invalid token')
-        req.user=user
-    next()
-        
-        
+        if (!user) throw new ApiError('invalid token')
+        req.user = user
+        next()
+
+
     } catch (error) {
-        throw new ApiError(error.message,400)
+        console.log(error)
+        throw new ApiError(error.message, 400)
     }
 })
 
-module.exports=authmiddleware
+const adminMiddleware = asyncHandler(async (req, res, next) => {
+
+    const { _id } = req.user
+    console.log(_id)
+    const userRole = await User.findById(_id)
+    console.log(userRole)
+    if (userRole.role != 'admin') {
+        throw new ApiError('unauthorized acess')
+    }
+    else { 
+        next()
+    }
+
+})
+module.exports = { authmiddleware, adminMiddleware }
+
+
