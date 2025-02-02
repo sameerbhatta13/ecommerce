@@ -6,8 +6,8 @@ const ApiResponse = require("../utils/apiResponse");
 
 const authmiddleware = asyncHandler(async (req, res, next) => {
     try {
-        const token = req.header("authorization")?.replace("Bearer ", "")
-        console.log(token)
+        const token = req.cookies.accessToken || req.header("authorization")?.replace("Bearer ", "")
+        // console.log(token)
         if (!token)
             throw new ApiError("token is not available", 403);
         const { userId } = jwt.verify(token, process.env.TOKEN)
@@ -16,10 +16,7 @@ const authmiddleware = asyncHandler(async (req, res, next) => {
         if (!user) throw new ApiError('invalid token')
         req.user = user
         next()
-
-
     } catch (error) {
-        console.log(error)
         throw new ApiError(error.message, 400)
     }
 })
@@ -33,7 +30,7 @@ const adminMiddleware = asyncHandler(async (req, res, next) => {
     if (userRole.role != 'admin') {
         throw new ApiError('unauthorized acess')
     }
-    else { 
+    else {
         next()
     }
 

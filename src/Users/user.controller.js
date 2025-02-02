@@ -5,6 +5,8 @@ const otpGenerator = require('../../utils/otpGenerator')
 const ApiResponse = require('../../utils/apiResponse')
 const ApiError = require('../../utils/apiError')
 const jwtToken = require('../../utils/jwtTokenGenerator')
+const jwt = require('jsonwebtoken')
+const cookieParser = require('cookie-parser')
 
 
 exports.postUser = asyncHandler(async (req, res) => {
@@ -55,6 +57,11 @@ exports.verify = asyncHandler(async (req, res) => {
     }
     const currTime = Date.now()
     if (user.otptime < currTime) {
+        const updateUser = await User.findByIdAndUpdate(user._id, {
+            otp: '',
+            otptime: undefined
+        })
+        await updateUser.save()
         throw new ApiError("otp is expired", 400)
     }
     // user.isvarified=true
@@ -76,27 +83,70 @@ exports.verify = asyncHandler(async (req, res) => {
 
 exports.signIn = asyncHandler(async (req, res) => {
     let { email, password } = req.body
-
     let user = await User.findOne({ email })
     if (!user) throw new ApiError("user is not registered", 403)
     if (!user.isvarified) throw new ApiError("your account is not verified, otp is send to your email please verify")
     if (user.password != password) {
-        throw new ApiError("email or password  does not match")
+        throw new ApiError("email or password  does not match", 403)
     }
-    const token = jwtToken(user._id)
-    res.status(200).json({ token, msg: "loged in successfully" })
+    const accessToken = jwtToken.jwtToken(user._id)
+    const refreshToken = jwtToken.refToken(user._id)
+
+    user.refrestoken = refreshToken
+    await user.save()
+
+
+    return res
+        .status(200)
+        .cookie("accessToken", accessToken, {
+            httpOnly: true,
+            secure: true
+        })
+        .cookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            secure: true
+        })
+        .json({ accessToken, refreshToken, msg: "loged in successfully" })
+
 }
 )
+
+exports.RefreshToken = asyncHandler(async (req, res) => {
+    const refreshToken = req.body.refreshToken
+    if (!refreshToken) throw new ApiError('no token found')
+    try {
+        const decodedToken = jwt.verify(refreshToken, process.env.REFTOKEN)
+        const user = await User.findById(decodedToken?.userId)
+        console.log(user)
+        if (!user) { throw new ApiError('not a valid token') }
+
+        const newAccessToken = jwtToken.jwtToken(user._id)
+        const newRefreshToken = jwtToken.refToken(user._id)
+
+        return res
+            .cookie("accessToken", newAccessToken, {
+                httpOnly: true,
+                secure: true,
+                sameSite: ''
+            })
+            .cookie("refreshToken", newRefreshToken, {
+                httpOnly: true,
+                secure: true
+            }).status(200)
+            .json({ newAccessToken, refToken: newRefreshToken })
+    } catch (error) {
+
+        throw new ApiError('Invalid or expired refresh token', 403);
+    }
+})
 
 
 exports.myData = asyncHandler(async (req, res) => {
     const { _id } = req.user
 
-    const data = await User.findById(_id)
+    const data = await User.findById(_id).select('-password')
 
     return res.status(200).json(new ApiResponse('my data', data))
-
-
 
 })
 
@@ -121,6 +171,24 @@ exports.adminLogIn = asyncHandler(async (req, res) => {
     res.status(200).json({ token, msg: "loged in successfully" })
 
 
+})
+
+//logout route
+
+exports.logoutUser = asyncHandler(async (req, res) => {
+    const { _id } = req.user
+    console.log(_id)
+    await User.findByIdAndDelete(_id, {
+        $unset: {
+            refrestoken
+        }
+    }, {
+        new: true
+    })
+
+    return res
+        .status(200)
+        .json('user logged out ')
 })
 
 

@@ -1,5 +1,4 @@
 const mongoose = require('mongoose')
-const { MAX } = require('uuid')
 const { ObjectId } = mongoose.Schema
 
 const productScheme = new mongoose.Schema({
@@ -9,6 +8,7 @@ const productScheme = new mongoose.Schema({
     },
     price: {
         type: Number,
+        required: true
 
     },
     description: {
