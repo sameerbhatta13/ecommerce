@@ -2,6 +2,7 @@ const ApiError = require('../../utils/apiError')
 const ApiResponse = require('../../utils/apiResponse')
 const asyncHandler = require('../../utils/asyncHandler')
 const Cart = require('./cart.model')
+const Product = require('../Products/product.model')
 
 exports.addToCart = asyncHandler(async (req, res) => {
     const { productId, quantity } = req.body
@@ -84,7 +85,7 @@ exports.getCartProuduct = asyncHandler(async (req, res) => {
 exports.getCartByUser = asyncHandler(async (req, res) => {
     const { _id } = req.user
     try {
-        const cart = await Cart.find({ userId: _id }).populate('products.productId', 'title price image')
+        const cart = await Cart.find({ userId: _id }).populate('products.productId', 'title price image countInStock')
         if (!cart) {
             throw new ApiError('cart not found for specific user', 400)
         }
@@ -101,9 +102,12 @@ exports.getCartByUser = asyncHandler(async (req, res) => {
 exports.qunantityIncrement = asyncHandler(async (req, res) => {
     const { _id } = req.user
     console.log(req.params.productid)
+    const productid = req.params.productid
+
+    const product = await Product.findById(productid)
     // const { productId } = req.body
     const user = await Cart.findOne({ userId: _id })
-    const checkProduct = user.products.find((item, index) => item.productId == req.params.productid)
+    const checkProduct = user.products.find((item, index) => item.productId == productid)
     if (!checkProduct) {
         throw new ApiError('Product Not found.', 404)
     }
@@ -113,11 +117,16 @@ exports.qunantityIncrement = asyncHandler(async (req, res) => {
     // user.save()
 
     // //this is the second way
-    const data = await Cart.findOneAndUpdate({ 'products.productId': req.params.productid }, {
+
+    if (checkProduct.quantity >= product.countInStock) {
+        throw new ApiError('stock limit is reached ')
+    }
+    const data = await Cart.findOneAndUpdate({ 'products.productId': productid }, {
         $inc: { 'products.$.quantity': 1 }
     }, {
         new: true
     })
+
     res.json(data)
 
 

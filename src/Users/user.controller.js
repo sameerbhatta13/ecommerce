@@ -89,8 +89,9 @@ exports.signIn = asyncHandler(async (req, res) => {
     if (user.password != password) {
         throw new ApiError("email or password  does not match", 403)
     }
-    const accessToken = jwtToken.jwtToken(user._id)
+    const accessToken = jwtToken.jwtToken(user._id, user.role)
     const refreshToken = jwtToken.refToken(user._id)
+    const role = user.role
 
     user.refrestoken = refreshToken
     await user.save()
@@ -106,7 +107,7 @@ exports.signIn = asyncHandler(async (req, res) => {
             httpOnly: true,
             secure: true
         })
-        .json({ accessToken, refreshToken, msg: "loged in successfully" })
+        .json({ accessToken, role, refreshToken, msg: "loged in successfully" })
 
 }
 )
