@@ -1,56 +1,69 @@
-const OrderItem = require('./orderItem.model')
+const ApiResponse = require("../../utils/apiResponse");
+const asyncHandler = require("../../utils/asyncHandler");
 const Order = require('./order.model')
-const asyncHandler = require('../../utils/asyncHandler')
+const Product = require('../Products/product.model')
 const ApiError = require('../../utils/apiError')
 
 
-
-//post order
-
 exports.postOrder = asyncHandler(async (req, res) => {
-    const { orderItems } = req.body
-    const orderItemsIds = Promise.all(orderItems.map(async orderitem => {
-        let newOrderItem = new OrderItem({
-            quantity: orderitem.quantity,
-            product: orderitem.product
-        })
-        newOrderItem = await newOrderItem.save()
-        return newOrderItem._id
-    }))
+    const { _id } = req.user
+    const { products, shippingAddress } = req.body
+    let totalAmount = 0
+    const order = await Order.findOne({ userId: _id })
+    // console.log(order)
+    if (!Array.isArray(products) || products.length === 0) {
+        throw new ApiError("Products list is required and must be an array");
+    }
+    const productIds = products.map(p => p.productId)
 
-    const orderItemIdsResolved = await orderItemsIds
+    const existingOrder = await Order.find({ userId: _id, "products.productId": { $all: productIds } })
 
-    const totalAmount = await Promise.all(orderItemIdsResolved.map(async orderId => {
-        const itemOrder = await OrderItem.findById(orderId).populate('product', 'price')
-        const total = itemOrder.quantity * itemOrder.product.price
-        return total
-    }))
-    const totalPrice = totalAmount.reduce((a, b) => a + b, 0)
-    console.log('Final Total Price:', totalPrice);
+    if (existingOrder) {
+        return res.status(400).json({ message: 'you already have a order ' })
+    }
 
-    //save the data
-    let order = new Order({
-        orderItems: orderItemIdsResolved,
-        address: req.body.address,
-        phone: req.body.phone,
-        totalPrice: totalPrice,
-        user: req.body.user
 
+    const fetchedProducts = await Product.find({ _id: { $in: productIds } })
+
+    if (fetchedProducts.length !== products.length) {
+        throw new ApiError('some product does not match')
+    }
+
+    const finalProducts = products.map(p => {
+        const product = fetchedProducts.find(fp => fp._id.toString() == p.productId)
+
+        if (!product) {
+            throw new ApiError(`product with id ${p.productId} not found`)
+        }
+        const itemTotal = product.price * p.quantity
+        totalAmount += itemTotal
+
+        return {
+            productId: product._id,
+            quantity: p.quantity,
+            price: product.price
+        };
     })
 
-    order = await order.save()
-    if (!order) throw new ApiError('something went wrong', 400)
+    let newOrder = new Order({
+        userId: _id,
+        products: finalProducts,
+        totalAmount,
+        shippingAddress,
+        status: 'pending'
+    })
+    await newOrder.save()
+    res.status(201).json({
+        message: "Order placed successfully",
+        order: newOrder
+    });
 
-    res.send(order)
+
 
 })
 
-//order list
+//get the order items
 
-exports.orderList = asyncHandler(async (req, res) => {
-    const order = await Order.find()
-        .populate('user', 'username')
-        .sort({ createdAt: -1 }) //descending order
-    if (!order) throw new ApiError('something went wront')
-    res.send(order)
+exports.getOrderItems = asyncHandler(async (req, res) => {
+
 })

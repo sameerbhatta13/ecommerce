@@ -10,8 +10,8 @@ require('./Db/connection')
 const userRoute = require('./src/Users/user.routes')
 const productRoute = require('./src/Products/product.route')
 const categoryRoute = require('./src/categories/category.route')
-const orderRoute = require('./src/orders/order.routes')
 const cartRoute = require('./src/Carts/cart.route')
+const orderRoute = require('./src/Orders/order.route')
 const { notFound, erroMiddleware } = require('./middleware/errorMiddleware')
 
 
@@ -22,7 +22,7 @@ let port = process.env.PORT
 
 //middleware
 app.use(cors({
-    origin: 'http://localhost:5173', // Frontend URL
+    origin: ['http://localhost:5173', 'http://localhost:5174'], // Frontend URL
     credentials: true,
 }))
 app.use(cookieParser())
